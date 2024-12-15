@@ -1,0 +1,89 @@
+waypoints:
+  - position: #0
+      x: 0.0
+      y: 3.0
+      z: 0.0
+    orientation:
+      roll: 0.0
+      pitch: 0.0
+      yaw: 0.0
+  - position: #1
+      x: 6.0 
+      y: 4.0
+      z: 0.0
+    orientation:
+      roll: 0.0
+      pitch: 0.0
+      yaw: 0.523
+  - position: #2
+      x: 7.0
+      y: -1.4
+      z: 0.0
+    orientation:
+      roll: 0.0
+      pitch: 0.0
+      yaw: 3.1415
+  - position: #3
+      x: -1.6
+      y: -2.5
+      z: 0.0
+    orientation:
+      roll: 0.0
+      pitch: 0.0
+      yaw: 1.309
+  - position: #4 nuovi punti
+      x: -9.0
+      y: -3.3
+      z: 0.0
+    orientation:
+      roll: 0.0
+      pitch: 0.0
+      yaw: 0.0
+  - position: #5
+      x: 2.90
+      y: -3.97
+      z: 0.0
+    orientation:
+      roll: 0.0
+      pitch: 0.0
+      yaw: 0.0
+  - position: #6
+      x: 9.48
+      y: 4.43
+      z: 0.0
+    orientation:
+      roll: 0.0
+      pitch: 0.0
+      yaw: -1.57
+  - position: #7
+      x: 9.53
+      y: -4.5
+      z: 0.0
+    orientation:
+      roll: 0.0
+      pitch: 0.0
+      yaw: -3.1415
+  - position: #8
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    orientation:
+      roll: 0.0
+      pitch: 0.0
+      yaw: 0.0 
+  - position: #9
+      x: -3.71
+      y: 0.41
+      z: 0.0
+    orientation:
+      roll: 0.0
+      pitch: 0.0
+      yaw: -1.57 
+  - position: #10
+      x: -3.0
+      y: 3.5
+      z: 0.0
+    orientation:
+      roll: 0.0
+      pitch: 0.0
+      yaw: -1.57 
