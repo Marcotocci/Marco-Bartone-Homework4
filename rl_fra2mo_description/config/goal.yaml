@@ -16,7 +16,7 @@ waypoints:
       pitch: 0.0
       yaw: 0.523
   - position: #2
-      x: 7.0
+      x: 6.5
       y: -1.4
       z: 0.0
     orientation:

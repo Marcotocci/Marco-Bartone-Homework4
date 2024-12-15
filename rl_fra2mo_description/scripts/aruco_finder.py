@@ -28,7 +28,8 @@ import time
 
 class ArucoFinder(Node):
 
-    aruco_pose_ = PoseStamped()
+    aruco_pose_mf_= PoseStamped()
+    aruco_pose_cf_ = PoseStamped()
     aruco_detected_ = False
     waypoint_order_ = [9, 10]
 
@@ -71,15 +72,18 @@ class ArucoFinder(Node):
     def wait_for_aruco(self, navigator):
          if ArucoFinder.aruco_detected_ is True:
                 print("Cancel task")
-                navigator.cancelTask()
+                #navigator.cancelTask()
 
 
 
 
     def listener_callback(self, msg):
-        if ArucoFinder.aruco_detected_ is False:
-            print("Trovato")
-            ArucoFinder.aruco_pose_ = msg
+        #if ArucoFinder.aruco_detected_ is False:
+            aruco_pose_sf = msg
+            ArucoFinder.aruco_pose_cf_.pose.position.x = aruco_pose_sf.pose.position.z
+            ArucoFinder.aruco_pose_cf_.pose.position.y = -aruco_pose_sf.pose.position.x
+            ArucoFinder.aruco_pose_cf_.pose.position.z = -aruco_pose_sf.pose.position.y
+            print(ArucoFinder.aruco_pose_cf_.pose.position)
             ArucoFinder.aruco_detected_ = True
             
 

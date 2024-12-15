@@ -8,6 +8,7 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     fra2mo_dir = FindPackageShare('rl_fra2mo_description')
     nav2_bringup_dir = FindPackageShare('nav2_bringup')
+    aruco_ros_dir = FindPackageShare('aruco_ros')
     '''
     explore_lite_launch = PathJoinSubstitution(
         [FindPackageShare('explore_lite'), 'launch', 'explore.launch.py']
@@ -51,6 +52,21 @@ def generate_launch_description():
     )
     '''
 
+    aruco_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution([aruco_ros_dir, 'launch', 'simple_single.launch.py'])
+        ),
+        launch_arguments={'marker_id': '115',
+            'marker_size': '0.1',
+            'camera_topic': '/camera',
+            'camera_info_topic': '/camera_info',
+            'marker_frame': 'aruco_marker_frame',
+            'reference_frame': '',
+            'corner_refinement': 'LINES',
+            'use_sim_time': use_sim_time,}.items(),
+    )
+
+
 
     return LaunchDescription(
         [
@@ -59,5 +75,7 @@ def generate_launch_description():
             slam_launch,
             nav2_bringup_launch,
             #explore_lite_launch,
+            aruco_launch,
         ]
     )
+
