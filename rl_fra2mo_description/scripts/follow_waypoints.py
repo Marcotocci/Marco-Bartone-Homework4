@@ -114,11 +114,11 @@ def main():
         return pose
 
     # Definisce l'ordine specifico dei waypoint
-    #waypoint_order = [2, 3, 1, 0]  # Obiettivo 3 → Obiettivo 4 → Obiettivo 2 → Obiettivo 1
+    waypoint_order = [2, 3, 1, 0]  # Obiettivo 3 → Obiettivo 4 → Obiettivo 2 → Obiettivo 1
     
     #waypoint_order = [1, 6, 2, 7, 3, 4, 5]
 
-    waypoint_order = [9, 10]
+    #waypoint_order = [9, 10]
 
 
 

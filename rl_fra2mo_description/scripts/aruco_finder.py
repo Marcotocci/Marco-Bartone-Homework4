@@ -14,7 +14,7 @@
 # limitations under the License.
 
 
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, TransformStamped
 from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
 import rclpy
 from rclpy.duration import Duration
@@ -24,12 +24,27 @@ import math
 from rclpy.node import Node
 from std_msgs.msg import String
 import time
+import numpy as np
+import tf_transformations as tft
+from nav_msgs.msg import Odometry
+from tf2_msgs.msg import TFMessage
+
+
 
 
 class ArucoFinder(Node):
 
     aruco_pose_mf_= PoseStamped()
     aruco_pose_cf_ = PoseStamped()
+    aruco_pose_basefootprint_ = PoseStamped()
+    robot_pose_odom_ = Odometry()
+
+    target_frame = 'fra2mo/odom'
+    #odom_trans_mf_ = Transform()
+
+    odom_transformation_matrix_mf_ = tft.identity_matrix()
+    aruco_transformation_matrix_of_ = tft.identity_matrix()
+
     aruco_detected_ = False
     waypoint_order_ = [9, 10]
 
@@ -61,31 +76,153 @@ class ArucoFinder(Node):
             self.listener_callback,
             10)
         self.subscription  # prevent unused variable warning
+
+        self.subscription_2 = self.create_subscription(
+            Odometry,
+            '/model/fra2mo/odometry',
+            self.odom_listener_callback,
+            10)
+        self.subscription_2  # prevent unused variable warning
+
+        self.subscription_3 = self.create_subscription(
+            TFMessage,
+            '/tf',
+            self.tf_listener_callback,
+            10)
+        self.subscription_3  # prevent unused variable warning
         
         navigator.goToPose(goal_poses[0])
 
+
         # Creazione del timer che richiama cmd_publisher ogni 10 millisecondi
-        self.timer = self.create_timer(0.01, lambda: self.wait_for_aruco(navigator))
+        self.timer = self.create_timer(0.01, lambda: self.timer_callback(navigator))
+
+
+    
+    def timer_callback(self, navigator):
+        if ArucoFinder.aruco_detected_ is True:
+            
+            #Bisogna fare la moltiplicazione delle matrici
+
+            aruco_transformation_matrix_mf = tft.concatenate_matrices(ArucoFinder.odom_transformation_matrix_mf_, ArucoFinder.aruco_transformation_matrix_of_)
+
+            print(tft.translation_from_matrix(aruco_transformation_matrix_mf))
+
+
+            #navigator.cancelTask()
+    
+
+    def odom_listener_callback(self, msg):
+        ArucoFinder.robot_pose_odom_ = msg
+
+        robot_transformation_matrix_of = tft.concatenate_matrices(tft.translation_matrix((ArucoFinder.robot_pose_odom_.pose.pose.position.x,
+                                                                                          ArucoFinder.robot_pose_odom_.pose.pose.position.y,
+                                                                                          ArucoFinder.robot_pose_odom_.pose.pose.position.z)), tft.quaternion_matrix((ArucoFinder.robot_pose_odom_.pose.pose.orientation.x,
+                                                                                                                                                                    ArucoFinder.robot_pose_odom_.pose.pose.orientation.y,
+                                                                                                                                                                    ArucoFinder.robot_pose_odom_.pose.pose.orientation.z,
+                                                                                                                                                                    ArucoFinder.robot_pose_odom_.pose.pose.orientation.w)))
+
+        aruco_transformation_matrix_basefootprint = tft.concatenate_matrices(tft.translation_matrix((ArucoFinder.aruco_pose_basefootprint_.pose.position.x,
+                                                                                                     ArucoFinder.aruco_pose_basefootprint_.pose.position.y,
+                                                                                                     ArucoFinder.aruco_pose_basefootprint_.pose.position.z)), tft.quaternion_matrix((ArucoFinder.aruco_pose_basefootprint_.pose.orientation.x,
+                                                                                                                                                                                   ArucoFinder.aruco_pose_basefootprint_.pose.orientation.y,
+                                                                                                                                                                                   ArucoFinder.aruco_pose_basefootprint_.pose.orientation.z,
+                                                                                                                                                                                   ArucoFinder.aruco_pose_basefootprint_.pose.orientation.w)))
+
+        ArucoFinder.aruco_transformation_matrix_of_ = tft.concatenate_matrices(robot_transformation_matrix_of, aruco_transformation_matrix_basefootprint)
+
+        #aruco_translation_of = tft.translation_from_matrix(ArucoFinder.aruco_transformation_matrix_of_)
+
+    
+    
+        
+    def tf_listener_callback(self, msg):
+        #odom_trans_mf = TransformStamped()
+        for transform in msg.transforms:
+            if transform.child_frame_id == ArucoFinder.target_frame:
+                odom_trans_mf = msg.transforms[0]
+
+                ArucoFinder.odom_transformation_matrix_mf_ = tft.concatenate_matrices(tft.translation_matrix((odom_trans_mf.transform.translation.x,
+                                                                                                              odom_trans_mf.transform.translation.y,
+                                                                                                              odom_trans_mf.transform.translation.z)), tft.quaternion_matrix((odom_trans_mf.transform.rotation.x,
+                                                                                                                                                                              odom_trans_mf.transform.rotation.y,
+                                                                                                                                                                              odom_trans_mf.transform.rotation.z,
+                                                                                                                                                                              odom_trans_mf.transform.rotation.w)))
+        
 
 
         
-    def wait_for_aruco(self, navigator):
-         if ArucoFinder.aruco_detected_ is True:
-                print("Cancel task")
-                #navigator.cancelTask()
 
 
+        
+        
 
+
+        
 
     def listener_callback(self, msg):
         #if ArucoFinder.aruco_detected_ is False:
             aruco_pose_sf = msg
-            ArucoFinder.aruco_pose_cf_.pose.position.x = aruco_pose_sf.pose.position.z
-            ArucoFinder.aruco_pose_cf_.pose.position.y = -aruco_pose_sf.pose.position.x
-            ArucoFinder.aruco_pose_cf_.pose.position.z = -aruco_pose_sf.pose.position.y
-            print(ArucoFinder.aruco_pose_cf_.pose.position)
+
+            rx = tft.rotation_matrix(-np.pi/2, (1,0,0))
+
+            rz = tft.rotation_matrix(-np.pi/2, (0,0,1))
+
+
+            R_sf_to_cf = tft.concatenate_matrices(rz,rx)
+
+
+            aruco_quaternion_sf = (aruco_pose_sf.pose.orientation.x,
+                                aruco_pose_sf.pose.orientation.y,
+                                aruco_pose_sf.pose.orientation.z,
+                                aruco_pose_sf.pose.orientation.w )
+
+            Aruco_rotation_sf = tft.quaternion_matrix(aruco_quaternion_sf)
+
+            aruco_position_sf = (aruco_pose_sf.pose.position.x,
+                                aruco_pose_sf.pose.position.y,
+                                aruco_pose_sf.pose.position.z)
+
+            Aruco_translation_sf = tft.translation_matrix(aruco_position_sf)
+
+            Aruco_transformation_matrix_sf = tft.concatenate_matrices(Aruco_translation_sf,Aruco_rotation_sf)
+
+            Aruco_transformation_matrix_cf = tft.concatenate_matrices(R_sf_to_cf, Aruco_transformation_matrix_sf)
+
+            aruco_temp_position = tft.translation_from_matrix(Aruco_transformation_matrix_cf)
+
+            (ArucoFinder.aruco_pose_cf_.pose.position.x, 
+            ArucoFinder.aruco_pose_cf_.pose.position.y, 
+            ArucoFinder.aruco_pose_cf_.pose.position.z) = aruco_temp_position
+
+            aruco_temp_orientation = tft.quaternion_from_matrix(Aruco_transformation_matrix_cf)
+
+            (ArucoFinder.aruco_pose_cf_.pose.orientation.x, 
+            ArucoFinder.aruco_pose_cf_.pose.orientation.y, 
+            ArucoFinder.aruco_pose_cf_.pose.orientation.z,
+            ArucoFinder.aruco_pose_cf_.pose.orientation.w) = aruco_temp_orientation
+
+            
+            #Passaggio da camera_frame a base_footprint_frame
+
+            ArucoFinder.aruco_pose_basefootprint_.pose.position.x = ArucoFinder.aruco_pose_cf_.pose.position.x
+            ArucoFinder.aruco_pose_basefootprint_.pose.position.y = ArucoFinder.aruco_pose_cf_.pose.position.y 
+            ArucoFinder.aruco_pose_basefootprint_.pose.position.z = ArucoFinder.aruco_pose_cf_.pose.position.z + 0.237 
+
+            ArucoFinder.aruco_pose_basefootprint_.pose.orientation = ArucoFinder.aruco_pose_cf_.pose.orientation
+
+           
+
+            #Passaggio da odometry_frame a map_frame
+            
+
+            #print(ArucoFinder.aruco_pose_cf_.pose.position)
+            print("--------")
+            #print(ArucoFinder.aruco_pose_basefootprint_.pose.position)
             ArucoFinder.aruco_detected_ = True
             
+
+
 
     def rpy_to_quaternion(roll, pitch, yaw):
         """
