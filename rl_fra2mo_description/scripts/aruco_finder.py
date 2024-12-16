@@ -34,21 +34,27 @@ from tf2_msgs.msg import TFMessage
 
 class ArucoFinder(Node):
 
-    aruco_pose_mf_= PoseStamped()
-    aruco_pose_cf_ = PoseStamped()
-    aruco_pose_basefootprint_ = PoseStamped()
-    robot_pose_odom_ = Odometry()
+    aruco_pose_mf_= PoseStamped() #aruco pose in map_frame
+    aruco_pose_cf_ = PoseStamped() #aruco pose in camera_frame
+    aruco_pose_basefootprint_ = PoseStamped() #aruco pose in base_footprint frame
+    robot_pose_odom_ = Odometry() # robot pose in odometry_frame (built as Odometry type)
 
-    target_frame = 'fra2mo/odom'
-    #odom_trans_mf_ = Transform()
+    target_frame = 'fra2mo/odom' #id of the requested frame that will be read in /tf topic
+    
 
-    odom_transformation_matrix_mf_ = tft.identity_matrix()
-    aruco_transformation_matrix_of_ = tft.identity_matrix()
+    odom_transformation_matrix_mf_ = tft.identity_matrix() #Transformation matrix from map frame to odometry frame
+    aruco_transformation_matrix_of_ = tft.identity_matrix() #Transformation matrix from odometry frame to aruco frame
 
-    aruco_detected_ = False
-    waypoint_order_ = [9, 10]
+    aruco_detected_ = False #Bool: true if the aruco has been detected once 
+    aruco_correctly_computed = False #Bool:true if the aruco has been computed 
 
-    def __init__(self):
+    aruco_position_mf_ = np.array([])
+
+    #aruco_position_norm_ = 0
+
+    waypoint_order_ = [9, 10] 
+
+    def __init__(self): #Constructor
         super().__init__('aruco_finder')
 
         navigator = BasicNavigator()
@@ -70,21 +76,21 @@ class ArucoFinder(Node):
 
         nav_start = navigator.get_clock().now()
 
-        self.subscription = self.create_subscription(
+        self.subscription = self.create_subscription( #subscriber to the aruco_pose in sensor frame, computes aruco matrix in base_footprint frame
             PoseStamped,
             '/aruco_single/pose',
             self.listener_callback,
             10)
         self.subscription  # prevent unused variable warning
 
-        self.subscription_2 = self.create_subscription(
+        self.subscription_2 = self.create_subscription( #subscriber to robot pose in odometry frame, computes transformation matrix
             Odometry,
             '/model/fra2mo/odometry',
             self.odom_listener_callback,
             10)
         self.subscription_2  # prevent unused variable warning
 
-        self.subscription_3 = self.create_subscription(
+        self.subscription_3 = self.create_subscription( #subcriber to odometry frame in map frame, computes the transformation matrix
             TFMessage,
             '/tf',
             self.tf_listener_callback,
@@ -94,19 +100,44 @@ class ArucoFinder(Node):
         navigator.goToPose(goal_poses[0])
 
 
-        # Creazione del timer che richiama cmd_publisher ogni 10 millisecondi
+        # Creazione del timer che richiama timer_callback ogni 10 millisecondi
         self.timer = self.create_timer(0.01, lambda: self.timer_callback(navigator))
 
 
     
-    def timer_callback(self, navigator):
+    def timer_callback(self, navigator): 
+
+            # Computation of the global transformation matrix (aruco in map frame)
+
         if ArucoFinder.aruco_detected_ is True:
-            
-            #Bisogna fare la moltiplicazione delle matrici
 
             aruco_transformation_matrix_mf = tft.concatenate_matrices(ArucoFinder.odom_transformation_matrix_mf_, ArucoFinder.aruco_transformation_matrix_of_)
 
-            print(tft.translation_from_matrix(aruco_transformation_matrix_mf))
+            #ex_aruco_position_norm = ArucoFinder.aruco_position_norm_
+
+            #ArucoFinder.aruco_position_norm_ = np.linalg.norm(tft.translation_from_matrix(aruco_transformation_matrix_mf))
+
+            ex_aruco_position_mf = ArucoFinder.aruco_position_mf_
+
+            ArucoFinder.aruco_position_mf_ = tft.translation_from_matrix(aruco_transformation_matrix_mf)
+
+
+            if ArucoFinder.aruco_position_mf_.all() == ex_aruco_position_mf.all():
+                
+                if ArucoFinder.aruco_correctly_computed is False:
+                    navigator.cancelTask()
+                    print(tft.translation_from_matrix(aruco_transformation_matrix_mf))  
+
+                ArucoFinder.aruco_correctly_computed = True
+
+                
+
+                              
+
+
+
+
+            #print(tft.translation_from_matrix(aruco_transformation_matrix_mf))
 
 
             #navigator.cancelTask()
@@ -115,12 +146,16 @@ class ArucoFinder(Node):
     def odom_listener_callback(self, msg):
         ArucoFinder.robot_pose_odom_ = msg
 
+         # Computation of the transformation matrix (robot in odometry frame)
+
         robot_transformation_matrix_of = tft.concatenate_matrices(tft.translation_matrix((ArucoFinder.robot_pose_odom_.pose.pose.position.x,
                                                                                           ArucoFinder.robot_pose_odom_.pose.pose.position.y,
                                                                                           ArucoFinder.robot_pose_odom_.pose.pose.position.z)), tft.quaternion_matrix((ArucoFinder.robot_pose_odom_.pose.pose.orientation.x,
                                                                                                                                                                     ArucoFinder.robot_pose_odom_.pose.pose.orientation.y,
                                                                                                                                                                     ArucoFinder.robot_pose_odom_.pose.pose.orientation.z,
                                                                                                                                                                     ArucoFinder.robot_pose_odom_.pose.pose.orientation.w)))
+
+        # Computation of the transformation matrix (aruco in base_footprint)
 
         aruco_transformation_matrix_basefootprint = tft.concatenate_matrices(tft.translation_matrix((ArucoFinder.aruco_pose_basefootprint_.pose.position.x,
                                                                                                      ArucoFinder.aruco_pose_basefootprint_.pose.position.y,
@@ -142,6 +177,8 @@ class ArucoFinder(Node):
             if transform.child_frame_id == ArucoFinder.target_frame:
                 odom_trans_mf = msg.transforms[0]
 
+                # Computation of the transformation matrix (odometry in map frame)
+
                 ArucoFinder.odom_transformation_matrix_mf_ = tft.concatenate_matrices(tft.translation_matrix((odom_trans_mf.transform.translation.x,
                                                                                                               odom_trans_mf.transform.translation.y,
                                                                                                               odom_trans_mf.transform.translation.z)), tft.quaternion_matrix((odom_trans_mf.transform.rotation.x,
@@ -151,17 +188,8 @@ class ArucoFinder(Node):
         
 
 
-        
-
-
-        
-        
-
-
-        
-
     def listener_callback(self, msg):
-        #if ArucoFinder.aruco_detected_ is False:
+        if ArucoFinder.aruco_correctly_computed is False:
             aruco_pose_sf = msg
 
             rx = tft.rotation_matrix(-np.pi/2, (1,0,0))
@@ -207,19 +235,14 @@ class ArucoFinder(Node):
 
             ArucoFinder.aruco_pose_basefootprint_.pose.position.x = ArucoFinder.aruco_pose_cf_.pose.position.x
             ArucoFinder.aruco_pose_basefootprint_.pose.position.y = ArucoFinder.aruco_pose_cf_.pose.position.y 
-            ArucoFinder.aruco_pose_basefootprint_.pose.position.z = ArucoFinder.aruco_pose_cf_.pose.position.z + 0.237 
+            ArucoFinder.aruco_pose_basefootprint_.pose.position.z = ArucoFinder.aruco_pose_cf_.pose.position.z + 0.237 + 0.1 #0.237 is camera height, 0.1 robot height in reference to the floor
 
             ArucoFinder.aruco_pose_basefootprint_.pose.orientation = ArucoFinder.aruco_pose_cf_.pose.orientation
 
-           
-
-            #Passaggio da odometry_frame a map_frame
-            
-
-            #print(ArucoFinder.aruco_pose_cf_.pose.position)
-            print("--------")
-            #print(ArucoFinder.aruco_pose_basefootprint_.pose.position)
             ArucoFinder.aruco_detected_ = True
+            #print(ArucoFinder.aruco_pose_cf_.pose.position)
+            #print(ArucoFinder.aruco_pose_basefootprint_.pose.position)
+            
             
 
 
