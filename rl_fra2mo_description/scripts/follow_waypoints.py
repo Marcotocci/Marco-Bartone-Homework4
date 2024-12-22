@@ -20,6 +20,7 @@ from rclpy.duration import Duration
 import yaml
 import os
 import math
+import string
 
 
 def rpy_to_quaternion(roll, pitch, yaw):
@@ -75,6 +76,12 @@ def load_waypoints(package_path):
 def main():
     rclpy.init()
     navigator = BasicNavigator()
+    
+    path_selector = ' '
+
+    while path_selector != 'map_explore' and path_selector != 'goals': 
+        print("Insert path (map_explore/goals):")
+        path_selector = input()
 
     # Ottieni il percorso del pacchetto rl_fra2mo_description
     package_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -114,13 +121,13 @@ def main():
         return pose
 
     # Definisce l'ordine specifico dei waypoint
-    waypoint_order = [2, 3, 1, 0]  # Obiettivo 3 → Obiettivo 4 → Obiettivo 2 → Obiettivo 1
+
+    if path_selector == 'map_explore':
+        waypoint_order = [5, 6, 7, 8, 9, 10, 11, 12, 13]
+
+    else:    
+        waypoint_order = [3, 4, 2, 1]  # Obiettivo 3 → Obiettivo 4 → Obiettivo 2 → Obiettivo 1
     
-    #waypoint_order = [1, 6, 2, 7, 3, 4, 5]
-
-    #waypoint_order = [9, 10]
-
-
 
     goal_poses = [create_pose(waypoints[i]) for i in waypoint_order]
 
@@ -131,7 +138,7 @@ def main():
 
     # Ciclo per navigare attraverso i waypoint uno per uno
     for i, goal_pose in enumerate(goal_poses):
-        print(f'Navigating to waypoint {waypoint_order[i] + 1}')
+        print(f'Navigating to waypoint {waypoint_order[i]}')
         navigator.goToPose(goal_pose)
 
         while not navigator.isTaskComplete():
@@ -145,8 +152,6 @@ def main():
             feedback = navigator.getFeedback()
 
             if feedback:
-                print('Executing current waypoint: ' +
-                      str(waypoint_order[i] + 1))
                 now = navigator.get_clock().now()
 
                 # Some navigation timeout to demo cancellation
@@ -156,13 +161,13 @@ def main():
         # Controlla il risultato del singolo waypoint
         result = navigator.getResult()
         if result == TaskResult.SUCCEEDED:
-            print(f'Goal {waypoint_order[i] + 1} succeeded!')
+            print(f'Goal {waypoint_order[i]} succeeded!')
         elif result == TaskResult.CANCELED:
-            print(f'Goal {waypoint_order[i] + 1} was canceled!')
+            print(f'Goal {waypoint_order[i]} was canceled!')
         elif result == TaskResult.FAILED:
-            print(f'Goal {waypoint_order[i] + 1} failed!')
+            print(f'Goal {waypoint_order[i]} failed!')
         else:
-            print(f'Goal {waypoint_order[i] + 1} has an invalid return status!')
+            print(f'Goal {waypoint_order[i]} has an invalid return status!')
 
     exit(0)
 
